@@ -39,7 +39,6 @@ from cse251 import *
 
 # Const Values
 TOP_API_URL = r'https://swapi.dev/api'
-TYPES = ["characters", "planets", "starships", "vehicles", "species"]
 
 # Global Variables
 call_count = 0
@@ -49,6 +48,10 @@ call_count = 0
 class RetrieveJson(threading.Thread):
     def __init__(self, url, type=None):
         super().__init__()
+        
+        global call_count
+        call_count += 1
+
         self.url = url
         self.type = type
     
@@ -59,9 +62,6 @@ class RetrieveJson(threading.Thread):
             self.results = None
     
     def _retrieve_json(self, url):
-        global call_count
-        call_count += 1
-
         response = requests.get(url)
         if response.status_code != 200:
             print('Error in requesting url:', url)
@@ -84,7 +84,7 @@ def retrieve_details_on_film(urls, film_id):
     run_threads((thread,))
     return thread.results
 
-def make_threads(details):
+def make_threads(details, TYPES):
     threads = []
     for type in TYPES:
         for url in details[type]:
@@ -99,7 +99,7 @@ def run_threads(threads):
     for t in threads:
         t.join()
 
-def retrieve_data_from_threads(threads):
+def retrieve_data_from_threads(threads, TYPES):
     data = {t: [] for t in TYPES}
     for t in threads:
         data[t.type].append(t.results["name"])
@@ -107,7 +107,7 @@ def retrieve_data_from_threads(threads):
         data[t] = sorted(data[t])
     return data
 
-def display_data(log, details, data):
+def display_data(log, details, data, TYPES):
     log.write("----------------------------------------")
     log.write("Title   : " + details["title"])
     log.write("Director: " + details["director"])
@@ -122,18 +122,20 @@ def display_data(log, details, data):
 def main():
     log = Log(show_terminal=True)
     log.start_timer('Starting to retrieve data from swapi.dev')
+    
+    TYPES = ["characters", "planets", "starships", "vehicles", "species"]
 
     # TODO Retrieve Top API urls
     urls = retrieve_top_api_urls(TOP_API_URL)
 
     # TODO Retrieve Details on film 6
     details = retrieve_details_on_film(urls, 6)
-    threads = make_threads(details)
+    threads = make_threads(details, TYPES)
     run_threads(threads)
-    data = retrieve_data_from_threads(threads)
+    data = retrieve_data_from_threads(threads, TYPES)
     
     # TODO Display results
-    display_data(log, details, data)
+    display_data(log, details, data, TYPES)
 
     log.stop_timer('Total Time To complete')
     log.write(f'There were {call_count} calls to swapi server')
