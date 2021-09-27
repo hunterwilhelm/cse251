@@ -46,14 +46,17 @@ call_count = 0
 
 # TODO Add your threaded class definition here
 class RetrieveJson(threading.Thread):
-    def __init__(self, url, type=None):
+    def __init__(self, url, key=None):
         super().__init__()
         
+        # Hacky, I know, but we talked 
+        # about this after class
+        # The constructor code is not threaded
         global call_count
         call_count += 1
 
         self.url = url
-        self.type = type
+        self.key = key
     
     def run(self):
         try:
@@ -102,7 +105,7 @@ def run_threads(threads):
 def retrieve_data_from_threads(threads, TYPES):
     data = {t: [] for t in TYPES}
     for t in threads:
-        data[t.type].append(t.results["name"])
+        data[t.key].append(t.results["name"])
     for t in TYPES:
         data[t] = sorted(data[t])
     return data
