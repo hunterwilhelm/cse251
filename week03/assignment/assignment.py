@@ -3,7 +3,7 @@
 Course: CSE 251
 Lesson Week: 03
 File: assignment.py
-Author: <Your Name>
+Author: Hunter Wilhelm
 
 Purpose: Video Frame Processing
 
@@ -28,16 +28,17 @@ import os, sys
 sys.path.append('../../code')   # Do not change the path.
 from cse251 import *
 
-# 4 more than the number of cpu's on your computer
-CPU_COUNT = mp.cpu_count() + 4  
 
-# TODO Your final video need to have 300 processed frames.  However, while you are 
+# 4 more than the number of cpu's on your computer
+CPU_COUNT = mp.cpu_count() + 4
+
+# TODO Your final video need to have 300 processed frames.  However, while you are
 # testing your code, set this much lower
 FRAME_COUNT = 20
 
-RED   = 0
+RED = 0
 GREEN = 1
-BLUE  = 2
+BLUE = 2
 
 
 def create_new_frame(image_file, green_file, process_file):
@@ -52,8 +53,9 @@ def create_new_frame(image_file, green_file, process_file):
     # Make Numpy array
     np_img = np.array(green_img)
 
-    # Mask pixels 
-    mask = (np_img[:, :, BLUE] < 120) & (np_img[:, :, GREEN] > 120) & (np_img[:, :, RED] < 120)
+    # Mask pixels
+    mask = (np_img[:, :, BLUE] < 120) & (
+        np_img[:, :, GREEN] > 120) & (np_img[:, :, RED] < 120)
 
     # Create mask image
     mask_img = Image.fromarray((mask*255).astype(np.uint8))
@@ -64,12 +66,33 @@ def create_new_frame(image_file, green_file, process_file):
 
 # TODO add any functions to need here
 
+def single_file_processing(image_number: int):
+
+    image_file = rf'elephant/image{image_number:03d}.png'
+    green_file = rf'green/image{image_number:03d}.png'
+    process_file = rf'processed/image{image_number:03d}.png'
+
+    create_new_frame(image_file, green_file, process_file)
+
+
+def process_all_files(image_count: int, process_count: int) -> float:
+    assert image_count > 0
+    assert process_count > 0
+
+    all_frames = list(range(1, image_count + 1))
+
+    start_time = timeit.default_timer()
+    with mp.Pool(process_count) as p:
+        # map those 2 process to the function func()
+        # Python will call the function func() alternating items in the names list.
+        # the two processes will run in parallel
+        p.map(single_file_processing, all_frames)
+    time_elapsed = timeit.default_timer() - start_time
+    print(f'\nTime To Process all images = {time_elapsed}')
+    return time_elapsed
 
 
 if __name__ == '__main__':
-    # single_file_processing(300)
-    # print('cpu_count() =', cpu_count())
-
     all_process_time = timeit.default_timer()
     log = Log(show_terminal=True)
 
@@ -78,27 +101,20 @@ if __name__ == '__main__':
 
     # TODO Process all frames trying 1 cpu, then 2, then 3, ... to CPU_COUNT
     #      add results to xaxis_cpus and yaxis_times
-
+    for c in range(1, CPU_COUNT):
+        time_elapsed = process_all_files(FRAME_COUNT, c)
+        xaxis_cpus.append(c)
+        yaxis_times.append(time_elapsed)
 
     # sample code: remove before submitting  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # process one frame #10
-    image_number = 10
-
-    image_file = rf'elephant/image{image_number:03d}.png'
-    green_file = rf'green/image{image_number:03d}.png'
-    process_file = rf'processed/image{image_number:03d}.png'
-
-    start_time = timeit.default_timer()
-    create_new_frame(image_file, green_file, process_file)
-    print(f'\nTime To Process all images = {timeit.default_timer() - start_time}')
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
 
     log.write(f'Total Time for ALL processing: {timeit.default_timer() - all_process_time}')
 
     # create plot of results and also save it to a PNG file
     plt.plot(xaxis_cpus, yaxis_times, label=f'{FRAME_COUNT}')
-    
+
     plt.title('CPU Core yaxis_times VS CPUs')
     plt.xlabel('CPU Cores')
     plt.ylabel('Seconds')
