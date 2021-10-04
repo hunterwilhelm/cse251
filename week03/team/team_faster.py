@@ -1,7 +1,7 @@
 """
 Course: CSE 251
 Lesson Week: 03
-File: team.py
+File: team_faster.py
 Author: Brother Comeau
 
 Purpose: Team Activity: 
@@ -70,6 +70,7 @@ class Board():
         self.size = size
         self.board = [['.' for _ in range(size)] for _ in range(size)] 
         self.highlighting = [[False for _ in range(size)] for _ in range(size)] 
+        self.caches = []
 
     def _word_fits(self, word, row, col, direction):
         """ Helper function: Fit a word in the board """
@@ -147,12 +148,14 @@ class Board():
     def find_word(self, word):
         """ Find a word in the board """
         print(f'Finding {word}...')
-        for row in range(self.size):
-            for col in range(self.size):
-                for d in range(0, 8):
-                    if self._word_at_this_location(row, col, d, word):
-                        return [row, col, d, word]
-        return None
+        for i in range(len(self.directions)):
+            if i > 3:
+                word = word[::-1]
+            result = self.caches[i].find(word)
+            if result != -1:
+                return result
+        return -1
+
       
     def highlight_word(self, row, col, direction, word):
       dir_x, dir_y = self.directions[direction]
@@ -160,6 +163,63 @@ class Board():
           self.highlight(row, col)
           row += dir_x
           col += dir_y
+    
+    def generate_cache(self):
+        self.caches = []
+
+        # directions = (
+        #     (1, 0),   # 0 E
+        #     (1, 1),   # 1 SE
+        #     (0, 1),   # 2 S
+        #     (-1, 1),  # 3 SW
+        #     (-1, 0),  # 4 W
+        #     (-1, -1), # 5 NW
+        #     (0, -1),  # 6 N
+        #     (1, -1)   # 7 NE
+        # )
+        same_reversed = {
+            4: 0, # W E 
+            6: 2, # N S
+            5: 1, # NW SE
+            7: 3, # NE SW 
+        }
+        for i in range(len(self.directions)):
+            if i in same_reversed:
+                self.caches.append(self.caches[same_reversed[i]])
+                print(i, "\n" + line[::-1])
+                continue
+                
+            line = ""
+            if i == 0: # E
+                line = "\n".join(map(lambda row: "".join(row), self.board))
+            elif i == 2: # S
+                for x_ in range(self.size):
+                    for y_ in range(self.size):
+                        line += self.get_letter(y_, x_)
+                    line += "\n"
+            elif  i == 1: # SE
+                for l in range(1, (self.size + self.size)):
+                    start_col = max(0, l - self.size)
+                    count = min(l, (self.size - start_col), self.size)
+                    for j in range(0, count):
+                        y_ = min(self.size, l) - j - 1
+                        x_ = start_col + j
+                        line += self.get_letter(x_, y_)
+                    line += "\n"
+            elif  i == 3: # NE SW
+                for l in range(1, (self.size + self.size)):
+                    start_col = max(0, l - self.size)
+                    count = min(l, (self.size - start_col), self.size)
+                    for j in range(0, count):
+                        y_ = self.size - (min(self.size, l) - j - 1)
+                        x_ = start_col + j
+                        line += self.get_letter(x_, y_)
+                    line += "\n"
+                
+
+            print(i, "\n" + line)
+            self.caches.append(line)
+
 
 # Our functions
 
@@ -182,26 +242,30 @@ def main():
     board.display()
 
     start = time.perf_counter()
-    if exists("results.txt"):
-      os.remove("results.txt")
+    board.generate_cache()
+    
+    # if exists("results.txt"):
+    #   os.remove("results.txt")
     
 
-    CPU_COUNT = mp.cpu_count()
-    args = [(board, word) for word in words]
+    # CPU_COUNT = mp.cpu_count()
+    # args = [(board, word) for word in words]
+    # args = args[:8]
     # with mp.Pool(CPU_COUNT) as p:
     #     p.map(do_find_word, args)
     for w in words:
-        do_find_word((board, w))
+        result = board.find_word(w)
+        print(result)
     
-    with open("results.txt") as f:
-      lines = f.readlines()
-      for l in lines:
-        data = json.loads(l)
-        row = data[0]
-        col = data[1]
-        d = data[2]
-        word = data[3]
-        board.highlight_word(row, col, d, word)
+    # with open("results.txt") as f:
+    #   lines = f.readlines()
+    #   for l in lines:
+    #     data = json.loads(l)
+    #     row = data[0]
+    #     col = data[1]
+    #     d = data[2]
+    #     word = data[3]
+    #     board.highlight_word(row, col, d, word)
     total_time = time.perf_counter() - start
 
     board.display()

@@ -15,6 +15,7 @@ Instructions:
 - Only process the given MP4 files for this assignment
 
 ------------------------------------------------------------------------------
+Claim: 5. Made it my own
 """
 
 from matplotlib.pylab import plt  # load plot library
@@ -34,7 +35,7 @@ CPU_COUNT = mp.cpu_count() + 4
 
 # TODO Your final video need to have 300 processed frames.  However, while you are
 # testing your code, set this much lower
-FRAME_COUNT = 20
+FRAME_COUNT = 300
 
 RED = 0
 GREEN = 1
