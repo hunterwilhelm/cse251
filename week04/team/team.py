@@ -31,8 +31,8 @@ def retrieve_thread(log, shared_queue):  # TODO add arguments
         # TODO check to see if anything is in the queue
         url = shared_queue.get()
         # TODO process the value retrieved from the queue
-        if url is None:
-            shared_queue.put(None)
+        if url == NO_MORE_VALUES:
+            shared_queue.put(NO_MORE_VALUES)
             break
         # TODO make Internet call to get characters name and log it
         response = requests.get(url)
@@ -58,7 +58,7 @@ def file_reader(log, shared_queue): # TODO add arguments
     log.write('finished reading file')
 
     # TODO signal the retrieve threads one more time that there are "no more values"
-    shared_queue.put(None)
+    shared_queue.put(NO_MORE_VALUES)
 
 
 
