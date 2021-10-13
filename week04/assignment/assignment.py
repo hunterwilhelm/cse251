@@ -148,7 +148,7 @@ class Dealer(threading.Thread):
 
             # Sleep a little after selling a car
             # Last statement in this for loop - don't change
-            time.sleep(random.random() / (SLEEP_REDUCE_FACTOR) *)
+            time.sleep(random.random() / (SLEEP_REDUCE_FACTOR))
 
 
 
