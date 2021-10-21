@@ -48,11 +48,8 @@ def receiver(filename, child_pipe: Connection, count):
     receive all content through the shared pipe and write to the file
     Keep track of the number of items sent over the pipe
     '''
-    
-    f = open(filename, 'w')
-    f.close()
 
-    with open(filename, 'a') as f:
+    with open(filename, 'w') as f:
         while (words := child_pipe.recv()) is not None:
             count.value += len(words)
             contents = " ".join(words)
