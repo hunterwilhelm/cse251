@@ -6,6 +6,8 @@ Author: <Your name here>
 Purpose: Processing Plant
 Instructions:
 - Implement the classes to allow gifts to be created.
+
+Claim: 5
 """
 
 import random
@@ -106,6 +108,7 @@ class Marble_Creator(mp.Process):
             time.sleep(self.delay)
         
         self.parent_pipe.send(None)
+        self.parent_pipe.close()
 
 
 class Bagger(mp.Process):
@@ -145,7 +148,9 @@ class Bagger(mp.Process):
 
             time.sleep(self.delay)
         
+        self.child_pipe.close()
         self.parent_pipe.send(None)
+        self.parent_pipe.close()
 
 
 class Assembler(mp.Process):
@@ -177,7 +182,9 @@ class Assembler(mp.Process):
             
             time.sleep(self.delay)
         
+        self.child_pipe.close()
         self.parent_pipe.send(None)
+        self.parent_pipe.close()
 
 
 class Wrapper(mp.Process):
@@ -203,6 +210,8 @@ class Wrapper(mp.Process):
             time.sleep(self.delay)
         with open(self.boxes_filename, "w") as f:
             f.writelines(lines)
+        
+        self.child_pipe.close()
 
 
 def display_final_boxes(filename, log):
