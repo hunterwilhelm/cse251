@@ -21,7 +21,6 @@ from multiprocessing.connection import Connection
 from cse251 import *
 set_working_directory(__file__)
 
-
 CONTROL_FILENAME = 'settings.txt'
 BOXES_FILENAME = 'boxes.txt'
 
@@ -122,6 +121,7 @@ class Bagger(mp.Process):
         self.child_pipe = child_pipe
         self.parent_pipe = parent_pipe
         self.delay = delay
+        self.bag_count = bag_count
 
     def run(self):
         '''
