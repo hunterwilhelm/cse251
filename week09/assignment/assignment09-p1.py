@@ -14,11 +14,12 @@ Claim: 5
 """
 import math
 from screen import Screen
-from maze import Maze
+from maze import Maze, COLOR_VISITED
 import cv2
 
 # Include cse 251 common Python files - Dont change
 import os, sys
+
 sys.path.append('../../code')   # Do not change the path.
 from cse251 import *
 
@@ -27,33 +28,26 @@ COLOR = (0, 0, 255)
 
 
 # TODO add any functions
-def is_position_walkable(pixels: list, row: int, col: int) -> bool:
-    if  0 <= row < len(pixels) and 0 <= col < len(pixels[row]):
-        return pixels[row][col] == 255
-    return False 
 
 def solve_path(maze: Maze) -> list:
     """ Solve the maze and return the path found between the start and end positions.  
         The path is a list of positions, (x, y) """
-    # TODO start add code here
-
-    directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
-    def recur(maze: Maze, row: int, col: int, path: list):
-        if not is_position_walkable(maze.pixels, row, col) or (row, col) in path:
-            return False
-        
+    path = []
+   
+    def recur(row: int, col: int):
+        maze.restore(row, col)
         path.append((row, col))
-        if (row, col) == maze.end_pos:
+        if maze.at_end(row, col):
             return True
-        for d in directions:
-            if recur(maze, row + d[1], col + d[0], path):
+        for row, col in maze.get_possible_moves(row, col):
+            if maze.can_move_here(row, col) and recur(row, col):
                 return True
         path.pop()
         return False
     
-    row, col = maze.start_pos
-    path = []
-    recur(maze, row, col, path)
+    row, col = maze.get_start_pos()
+    if maze.can_move_here(row, col):
+        recur(row, col)
     return path
 
 

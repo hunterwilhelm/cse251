@@ -29,7 +29,7 @@ Why would it work?
 import math
 import threading 
 from screen import Screen
-from maze import Maze
+from maze import Maze, COLOR_VISITED
 
 import cv2
 
@@ -73,13 +73,61 @@ def get_color():
     current_color_index += 1
     return color
 
-
-def solve_find_end(maze):
+def solve_find_end(maze: Maze) -> tuple:
     """ finds the end position using threads.  Nothing is returned """
     # When one of the threads finds the end position, stop all of them
+    global thread_count
+    thread_count = 0
 
+    thread_count_list: list[int] = []
+    threads: list[threading.Thread] = []
+    ends = []
+    color_lock = threading.Lock()
 
-    pass
+    def recur(row: int, col: int, color: tuple):
+        # stop the thread if the end is found
+        if len(ends) > 0:
+            return
+
+        # Checking the pixel and then updating is
+        # far from atomic. A lock is suggested in
+        # theory to prevent race conditions on the
+        # list's data
+        with color_lock:
+            # not thread safe
+            if maze.can_move_here(row, col):
+                maze.move(row, col, color)
+    
+        # destination
+        if maze.at_end(row, col):
+            ends.append((row, col)) # thread safe
+            return
+
+        moves = maze.get_possible_moves(row, col)
+        valid_moves = list(filter(lambda p: maze.can_move_here(*p), moves))
+
+        if len(valid_moves) > 0:
+            # don't make a thread for the first one
+            recur(*valid_moves.pop(), color)
+            # for the rest, make threads
+            thread_count_list.append(len(valid_moves))
+            for pos in valid_moves:
+                t = threading.Thread(target=recur, args=(*pos, get_color()))
+                t.start()
+                threads.append(t) # thread safe
+    row, col = maze.get_start_pos()
+    if maze.can_move_here(row, col):
+        recur(row, col, COLOR_VISITED)
+        for t in threads:
+            t.join()
+    
+    thread_count += sum(thread_count_list)
+
+    if len(ends) > 0:
+        return ends[0]
+    else:
+        print("Could not find end")
+
 
 
 def find_end(log, filename, delay):
