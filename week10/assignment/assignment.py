@@ -103,8 +103,7 @@ def read(data, write_semaphore, read_semaphore):
 def main():
 
     # This is the number of values that the writer will send to the reader
-    items_to_send = 100000
-    # items_to_send = random.randint(1000, 10000)
+    items_to_send = random.randint(1000, 10000)
 
     smm = SharedMemoryManager()
     smm.start()
@@ -140,7 +139,4 @@ def main():
 
 
 if __name__ == '__main__':
-    t = time.perf_counter()
     main()
-    elapsed_time = time.perf_counter() - t
-    print(elapsed_time)
