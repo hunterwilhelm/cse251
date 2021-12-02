@@ -45,6 +45,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -67,7 +68,47 @@ type Person struct {
 	Vehicles   []string
 }
 
-func getPerson(url string) {
+type Species struct {
+	Name           string
+	Classification string
+	Average_height string
+	Language       string
+}
+
+func getSpecies(wg *sync.WaitGroup, url string) {
+	// make a sample HTTP GET request
+	res, err := http.Get(url)
+
+	// check for response error
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// read all response body
+	data, _ := ioutil.ReadAll(res.Body)
+
+	// close response body
+	res.Body.Close()
+
+	// fmt.Println(string(data))
+
+	species := Species{}
+	jsonErr := json.Unmarshal(data, &species)
+	if jsonErr != nil {
+		log.Fatal(jsonErr)
+		fmt.Println("ERROR Pasing the JSON")
+	}
+
+	fmt.Println("-----------------------------------------------")
+	// fmt.Println(person)
+	fmt.Println("Name      			: ", species.Name)
+	fmt.Println("Average height     : ", species.Average_height)
+	fmt.Println("Language 			: ", species.Language)
+
+	wg.Done()
+}
+
+func getPerson(wg *sync.WaitGroup, url string) {
 	// make a sample HTTP GET request
 	res, err := http.Get(url)
 
@@ -96,6 +137,8 @@ func getPerson(url string) {
 	fmt.Println("Name      : ", person.Name)
 	fmt.Println("Birth     : ", person.Birth_year)
 	fmt.Println("Eye color : ", person.Eye_color)
+
+	wg.Done()
 }
 
 func main() {
@@ -120,9 +163,41 @@ func main() {
 		"http://swapi.dev/api/people/81/",
 	}
 
+	var wg sync.WaitGroup
+
 	for _, url := range urls {
-		getPerson(url)
+		go getPerson(&wg, url)
+		wg.Add(1)
+	}
+	wg.Wait()
+
+	urls2 := []string{
+		"http://swapi.dev/api/species/1/",
+		"http://swapi.dev/api/species/2/",
+		"http://swapi.dev/api/species/3/",
+		"http://swapi.dev/api/species/6/",
+		"http://swapi.dev/api/species/15/",
+		"http://swapi.dev/api/species/19/",
+		"http://swapi.dev/api/species/20/",
+		"http://swapi.dev/api/species/23/",
+		"http://swapi.dev/api/species/24/",
+		"http://swapi.dev/api/species/25/",
+		"http://swapi.dev/api/species/26/",
+		"http://swapi.dev/api/species/27/",
+		"http://swapi.dev/api/species/28/",
+		"http://swapi.dev/api/species/29/",
+		"http://swapi.dev/api/species/30/",
+		"http://swapi.dev/api/species/33/",
+		"http://swapi.dev/api/species/34/",
+		"http://swapi.dev/api/species/35/",
+		"http://swapi.dev/api/species/36/",
+		"http://swapi.dev/api/species/37/",
 	}
 
+	for _, url := range urls2 {
+		go getSpecies(&wg, url)
+		wg.Add(1)
+	}
+	wg.Wait()
 	fmt.Println("All done!")
 }
