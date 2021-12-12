@@ -2,7 +2,7 @@
 Course: CSE 251
 Lesson Week: 14
 File: assignment.py
-Author: <your name>
+Author: Hunter Wilhelm
 Purpose: Assignment 13 - Family Search
 
 Instructions:
@@ -26,13 +26,22 @@ and part 2 code below
 
 Describe how to speed up part 1
 
-<Add your comments here>
+The children of each family are not important for the discovery of new families. 
+So, we can put this functionality in a non-recursive thread. 
+To further speed it up, we can look them up from the tree to see if they are already in the tree. If not, then we get them from the server and put them into the tree. 
+Again all of this inside the threads.
 
+The parents of each family *are* important for the discovery of new families. 
+So, we can put this functionality in a *recursive* thread. 
+To further speed it up, we can spawn a thread for each parent which will be looking for more parents all at the same time adding the parents and children in the above statement to speed it up.
 
 Describe how to speed up part 2
 
-<Add your comments here>
-
+Get all of the families at once by id with threads and put them in the tree
+From the families, get all of the children at once by id with threads BUT DON'T JOIN UNTIL THE END and put them in the tree
+(If the children are already in the tree, then use that data instead)
+From the families, get all of the parents at once by id with threads and put them in the tree
+JOIN ALL the children threads
 
 10% Bonus to speed up part 3
 
@@ -44,6 +53,7 @@ import threading
 import multiprocessing as mp
 import json
 import random
+from typing import List
 import requests
 
 # Include cse 251 common Python files - Dont change
@@ -281,10 +291,33 @@ class Request_thread(threading.Thread):
             print('RESPONSE = ', response.status_code)
 
 
+def get_family_from_server(family_id) -> Family:
+    family_request = Request_thread(f'{TOP_API_URL}/family/{family_id}')
+    family_request.start()
+    family_request.join()
+    return Family(None, family_request.response)
+
+def get_person_from_server(person_id) -> Person:
+    person_request = Request_thread(f'{TOP_API_URL}/person/{person_id}')
+    person_request.start()
+    person_request.join()
+    return Person(person_request.response)
+
+def get_person_from_tree_or_server_and_add(person_id, tree: Tree) -> Person:
+    person = tree.get_person(person_id)
+    if person is None:
+        person = get_person_from_server(person_id)
+        tree.add_person(person)
+    return person
+
+def recur_with_parent_id(person_id, tree: Tree):
+    person = get_person_from_tree_or_server_and_add(person_id, tree)
+    depth_fs_pedigree(person.parents, tree)
+
 # -----------------------------------------------------------------------------
 # TODO - Change this function to speed it up.  Your goal is to create the complete
 #        tree faster.
-def depth_fs_pedigree(family_id, tree):
+def depth_fs_pedigree(family_id, tree: Tree):
     if family_id == None:
         return
 
@@ -300,6 +333,29 @@ def depth_fs_pedigree(family_id, tree):
     recursive call on the husband
     recursive call on the wife
     """
+
+    family = get_family_from_server(family_id)
+    tree.add_family(family)
+    
+    parent_ids = filter(lambda x: x is not None, [family.husband, family.wife])
+    children_ids = family.children
+    
+    threads = []
+    for person_id in children_ids:
+        thread = threading.Thread(target=get_person_from_tree_or_server_and_add, args=(person_id, tree))
+        threads.append(thread)
+
+    for parent_id in parent_ids:
+        thread = threading.Thread(
+            target=recur_with_parent_id,
+            args=(parent_id, tree)
+        )
+        threads.append(thread)
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
 
 # -----------------------------------------------------------------------------
 # You must not change this function
@@ -323,17 +379,74 @@ def part1(log, start_id, generations):
     log.write(f'total_time                   : {total_time}')
     log.write(f'People and families / second : {(tree.get_person_count()  + tree.get_family_count()) / total_time}')
     log.write('')
-    
 # -----------------------------------------------------------------------------
+
+def put_families_all_at_once(family_ids, tree: Tree, thread_factory) -> List[Family]:
+    families: List[Family] = []
+    family_requests = [thread_factory(f'{TOP_API_URL}/family/{family_id}') for family_id in family_ids]
+    for family_req in family_requests:
+        family_req.start()
+    for family_req in family_requests:
+        family_req.join()
+        family = Family(None, family_req.response)
+        print(f'Retrieved Family: {family.id}')
+        tree.add_family(family)
+        families.append(family)
+    return families
+
+def get_ids_from_families(families: List[Family]) -> tuple:
+    parent_ids = []
+    for family in families:
+        parent_ids.extend([family.husband, family.wife])
+    valid_parent_ids = [parent_id for parent_id in parent_ids if parent_id is not None]
+
+    all_child_ids = []
+    for family in families:
+        all_child_ids.extend(family.children)
+    
+    return (valid_parent_ids, all_child_ids)
+
+def put_all_people_at_once(person_ids, tree: Tree, request_factory) -> List[Person]:
+    people = []
+    person_ids_to_request = []
+    
+    for person_id in person_ids:
+        person = tree.get_person(person_id)
+        if person is None:
+            person_ids_to_request.append(person_id)
+        else:
+            people.append(person)
+    
+    requests = [request_factory(f'{TOP_API_URL}/person/{person_id}') for person_id in person_ids_to_request]
+    for req in requests:
+        req.start()
+    for req in requests:
+        req.join()
+        person = Person(req.response)
+        tree.add_person(person)
+        people.append(person)
+    return people
+
+def build_tree_breadth_first_retrieval(start_id, tree, thread_factory):
+    current_family_ids = [start_id]
+    children_threads: List[threading.Thread] = []
+    
+    while len(current_family_ids):
+        families = put_families_all_at_once(current_family_ids, tree, thread_factory)  
+        (valid_parent_ids, all_child_ids) = get_ids_from_families(families)
+        children_threads.append(threading.Thread(target=put_all_people_at_once, args=(all_child_ids, tree, thread_factory)))
+        children_threads[-1].start()
+        parents = put_all_people_at_once(valid_parent_ids, tree, thread_factory)
+        current_family_ids = [parent.parents for parent in parents if parent.parents is not None]
+
+    for children_thread in children_threads:
+        children_thread.join()
+
 def breadth_fs_pedigree(start_id, tree):
     # TODO - implement breadth first retrieval
     # This video might help understand BFS
     # https://www.youtube.com/watch?v=86g8jAQug04
-
-    print('\n\n\nWARNING: BFS function not written')
-
-    pass
-
+    build_tree_breadth_first_retrieval(start_id, tree, Request_thread)
 # -----------------------------------------------------------------------------
 # You must not change this function
 def part2(log, start_id, generations):
@@ -359,13 +472,30 @@ def part2(log, start_id, generations):
 
 
 # -----------------------------------------------------------------------------
+
+class LimitedRequestThread(threading.Thread):
+    def __init__(self, url, semaphore: threading.Semaphore):
+        # Call the Thread class's init function
+        threading.Thread.__init__(self)
+        self.request = Request_thread(url)
+        self.response = {}
+        self.semaphore = semaphore
+
+    def run(self):
+        self.semaphore.acquire()
+        self.request.start()
+        self.request.join()
+        self.response = self.request.response
+        self.semaphore.release()
+
+def limitedRequestThreadFactoryFactory(semaphore):
+    return lambda url: LimitedRequestThread(url, semaphore)
+
 def breadth_fs_pedigree_limit5(start_id, tree):
     # TODO - implement breadth first retrieval
     #      - Limit number of concurrent connections to the FS server to 5
-
-    print('\n\n\nWARNING: BFS (Limit of 5 threads) function not written')
-
-    pass
+    limitedRequestThreadFactory = limitedRequestThreadFactoryFactory(threading.Semaphore(5))
+    build_tree_breadth_first_retrieval(start_id, tree, limitedRequestThreadFactory)
 
 # -----------------------------------------------------------------------------
 # You must not change this function
