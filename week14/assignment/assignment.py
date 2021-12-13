@@ -45,7 +45,12 @@ JOIN ALL the children threads
 
 10% Bonus to speed up part 3
 
-<Add your comments here>
+Refactor part 2 to handle a different request factory
+Call part 2 with the following request factory
+Use a semaphore to control how many calls are happening at once by wrapping the request thread in a class that has a semaphore
+Use a function that returns a function that has the semaphore in the scope so the class can be created over and over
+This is called currying and the factory design patterns
+The process should now be limited to 5 calls at a time
 
 """
 import time
